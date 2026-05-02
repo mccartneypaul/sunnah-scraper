@@ -35,3 +35,10 @@ https://docs.scrapy.org/en/latest/
 https://github.com/internetarchive/wayback/blob/master/wayback-cdx-server/README.md
 https://archive.org/donate/
 https://github.com/sangaline/scrapy-wayback-machine
+
+
+# Corpus
+  models, admin, public pages
+
+# Ingest
+  Wayback and scraping import logic
