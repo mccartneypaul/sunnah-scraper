@@ -37,6 +37,7 @@ class Hadith(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     reference_number = models.IntegerField()
     in_book_reference = models.TextField()
+    narrator = models.TextField()
     text = models.TextField()
     grade = models.TextField()
     link = models.TextField()
