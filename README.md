@@ -35,10 +35,18 @@ https://github.com/internetarchive/wayback/blob/master/wayback-cdx-server/README
 https://archive.org/donate/
 https://github.com/sangaline/scrapy-wayback-machine
 
+# Basic Start
+
+From terminal use: `conda activate sunnah-scraper`
+
 # Corpus
 
+From terminal use: `python manage.py runserver` to get the dev server running
 models, admin, public pages
 
 # Ingest
 
+From terminal use: `scrapy runspider sunnahspider.py`
+`scrapy crawl sunnah`
+`scrapy shell 'https://...'`
 Wayback and scraping import logic
