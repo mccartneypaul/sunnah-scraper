@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from django.utils import timezone
 
 import scrapy
 
@@ -11,14 +12,14 @@ class SunnahSpider(scrapy.Spider):
     async def start(self):
         # Might list all urls here and yield them, or read them from a file, or generate them.
         # Prefer not to generate from crawling for the web demand...
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = timezone.now()
 
         urls = [
             "https://sunnah.com/bukhari/1",
             "https://sunnah.com/bukhari/2",
         ]
         for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse, meta={"collection": "bukhari", "source": "sunnah.com", "timestamp": timestamp})
+            yield scrapy.Request(url=url, callback=self.parse, meta={"collection": "Sahih al-Bukhari", "source": "sunnah.com", "timestamp": timestamp})
 
     def parse(self, response):
         collection = response.meta.get("collection", "unknown")
@@ -26,16 +27,19 @@ class SunnahSpider(scrapy.Spider):
         timestamp = response.meta.get("timestamp", "unknown")
 
         page = response.url.split("/")[-1]
-        snapshot_dir = Path(f"sunnahspider/snapshots/{source}_{timestamp}/{collection}")
+        snapshot_dir = Path(f"sunnahspider/snapshots/{source}_{timestamp.strftime('%Y%m%d_%H%M%S')}/{collection}")
         snapshot_dir.mkdir(parents=True, exist_ok=True)
         filepath = snapshot_dir / f"{page}.html"
         filepath.write_bytes(response.body)
         self.logger.info(f"Saved file {filepath}")
 
-        # TODO: Annotate the list of hadith that are returned with the snapshot infor and collection data
-        yield from self.parse_hadith_chapter(response)
-
-# Could probably create a separate function to work on the html that was pulled down.
+        hadith_list = list(self.parse_hadith_chapter(response))
+        yield {
+            "collection_name": collection,
+            "base_hadith_list": hadith_list,
+            "snapshot_source": source,
+            "snapshot_date": timestamp,
+        }
 
     def parse_hadith_chapter(self, response):
         raw_hadith_list = response.css("div.actualHadithContainer")
@@ -59,14 +63,14 @@ class SunnahSpider(scrapy.Spider):
         hadith_text = "\n\n".join(hadith_paragraphs)
 
         return BaseHadith(
-            hadith_narrator=hadith_narrator,
-            hadith_paragraphs=hadith_paragraphs,
-            hadith_text=hadith_text,
-            hadith_grade="Sahih" if "bukhari" in response.url else None,
-            hadith_language="en",
-            hadith_link=raw_hadith.css(".hadith_reference a::attr(href)").get(),
-            hadith_reference_number=raw_hadith.css("table.hadith_reference a::text").re_first(r"\d+"),
-            hadith_book_reference_number=raw_hadith.xpath(
+            narrator=hadith_narrator,
+            paragraphs=hadith_paragraphs,
+            text=hadith_text,
+            grade="Sahih" if "bukhari" in response.url else None,
+            language_iso_two_code="en",
+            link=raw_hadith.css(".hadith_reference a::attr(href)").get(),
+            reference_number=raw_hadith.css("table.hadith_reference a::text").re_first(r"\d+"),
+            book_reference_number=raw_hadith.xpath(
                 "normalize-space(.//table[contains(concat(' ', normalize-space(@class), ' '), ' hadith_reference ')]"
                 "//tr[td[1][contains(normalize-space(.), 'In-book reference')]]/td[2])"
             ).get(),

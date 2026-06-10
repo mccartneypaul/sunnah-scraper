@@ -9,14 +9,14 @@ import scrapy
 class BaseHadith(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-    hadith_narrator = scrapy.Field()
-    hadith_paragraphs = scrapy.Field()
-    hadith_text = scrapy.Field()
-    hadith_grade = scrapy.Field()
-    hadith_language = scrapy.Field()
-    hadith_link = scrapy.Field()
-    hadith_reference_number = scrapy.Field()
-    hadith_book_reference_number = scrapy.Field()
+    narrator = scrapy.Field()
+    paragraphs = scrapy.Field()
+    text = scrapy.Field()
+    grade = scrapy.Field()
+    language_iso_two_code = scrapy.Field()
+    link = scrapy.Field()
+    reference_number = scrapy.Field()
+    book_reference_number = scrapy.Field()
     pass
 
 class Hadith(scrapy.Item):
