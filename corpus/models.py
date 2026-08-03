@@ -44,4 +44,6 @@ class Hadith(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self):
-        return f"{self.collection.name} - Hadith {self.reference_number}"
+        return f"{self.collection.name} - Hadith {self.reference_number} - Snapshot {self.snapshot.source} {self.snapshot.taken_on.date().isoformat()}"
+    class Meta:
+        unique_together = ('collection', 'reference_number', 'snapshot', 'language')

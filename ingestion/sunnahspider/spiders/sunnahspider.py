@@ -1,8 +1,10 @@
 from pathlib import Path
 from datetime import datetime
+import json
 from django.utils import timezone
 
 import scrapy
+from scrapy.exceptions import CloseSpider
 
 from sunnahspider.items import BaseHadith
 
@@ -10,16 +12,65 @@ class SunnahSpider(scrapy.Spider):
     name = "sunnah"
 
     async def start(self):
-        # Might list all urls here and yield them, or read them from a file, or generate them.
-        # Prefer not to generate from crawling for the web demand...
+        # Prefer a static URL manifest instead of discovering by crawling.
         timestamp = timezone.now()
+        config_path = self.get_collections_path()
+        collections = self.load_collections(config_path)
 
-        urls = [
-            "https://sunnah.com/bukhari/1",
-            "https://sunnah.com/bukhari/2",
-        ]
-        for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse, meta={"collection": "Sahih al-Bukhari", "source": "sunnah.com", "timestamp": timestamp})
+        for collection_name, urls in collections.items():
+            for url in urls:
+                yield scrapy.Request(
+                    url=url,
+                    callback=self.parse,
+                    meta={
+                        "collection": collection_name,
+                        "source": "sunnah.com",
+                        "timestamp": timestamp,
+                    },
+                )
+
+    def get_collections_path(self) -> Path:
+        cli_path = getattr(self, "collections_file", None)
+        if cli_path:
+            path = Path(cli_path)
+            return path if path.is_absolute() else (Path.cwd() / path)
+
+        # Default to the package-level JSON file.
+        return Path(__file__).resolve().parents[1] / "collections.json"
+
+    def load_collections(self, config_path: Path) -> dict[str, list[str]]:
+        if not config_path.exists():
+            raise CloseSpider(
+                f"Collections file not found: {config_path}. "
+                "Provide one with -a collections_file=<path> or create ingestion/sunnahspider/collections.json"
+            )
+
+        try:
+            raw = json.loads(config_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise CloseSpider(f"Invalid JSON in collections file {config_path}: {exc}") from exc
+
+        if not isinstance(raw, dict):
+            raise CloseSpider(
+                "Collections JSON must be an object mapping collection names to URL lists."
+            )
+
+        collections: dict[str, list[str]] = {}
+        for collection_name, urls in raw.items():
+            if not isinstance(collection_name, str) or not collection_name.strip():
+                raise CloseSpider("Each collection key must be a non-empty string.")
+
+            if not isinstance(urls, list) or not all(isinstance(url, str) for url in urls):
+                raise CloseSpider(
+                    f"Collection '{collection_name}' must map to a list of URL strings."
+                )
+
+            collections[collection_name.strip()] = [url.strip() for url in urls if url.strip()]
+
+        if not collections:
+            raise CloseSpider("Collections JSON did not contain any URLs to crawl.")
+
+        return collections
 
     def parse(self, response):
         collection = response.meta.get("collection", "unknown")
